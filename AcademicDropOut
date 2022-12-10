@@ -1,0 +1,177 @@
+# ---------------------------------- IMPORTS ----------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import itertools
+import seaborn as sns
+from mlxtend.plotting import plot_learning_curves
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, roc_curve, auc
+from sklearn.preprocessing import OneHotEncoder
+from sklearn import svm
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from NaiveBayes import NaiveBayes
+
+def main():
+    # ---------------------------------- DATA ----------------------------------
+    data = pd.read_csv('dataset.csv', sep=';')
+    # Discrete Data for Decision Tree, Ada Boost, and Random Forest - Also used by the other models for comparison
+    data_discrete = data[['Marital status',
+             'Application mode',
+             'Course',
+             'Daytime/evening attendance',
+             'Previous qualification',
+             'Nacionality','Age at enrollment','Mother\'s qualification',
+             'Father\'s qualification',
+             'Mother\'s occupation',
+             'Father\'s occupation',
+             'Course',
+             'Previous qualification',
+             'Displaced',
+             'Educational special needs',
+             'Debtor', 
+             'Tuition fees up to date',
+             'Gender',
+             'Scholarship holder', 
+             'Age at enrollment',
+             'International',
+             'Curricular units 1st sem (credited)',
+             'Curricular units 1st sem (enrolled)',
+             'Curricular units 1st sem (evaluations)',
+             'Curricular units 1st sem (approved)',
+            #        'Curricular units 1st sem (grade)',
+             'Curricular units 1st sem (without evaluations)',
+             'Curricular units 2nd sem (credited)',
+             'Curricular units 2nd sem (enrolled)',
+             'Curricular units 2nd sem (evaluations)',
+             'Curricular units 2nd sem (approved)',
+            #        'Curricular units 2nd sem (grade)',
+             'Curricular units 2nd sem (without evaluations)',
+             'Target'
+    ]]
+    data=np.array(data_discrete)
+    rows, columns = data.shape
+    X = data[ :, 0:columns-1]
+    Y = data[:, -1]
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.33, random_state=1)
+
+
+    # ---------------------------------- MODELS ----------------------------------
+    model_names = ['SVM', 'KNN-3', 'KNN-11', 'ANN1','ANN2', 'DT', 'AdaBoost', 'RF', 'Naive Bayes']
+    models = []
+    models.append(svm.SVC())
+    models.append(KNeighborsClassifier(n_neighbors=3))
+    models.append(KNeighborsClassifier(n_neighbors=11))
+    models.append(MLPClassifier(hidden_layer_sizes=(34, 34, 34, 34), random_state=1, learning_rate='adaptive', solver='adam', max_iter=1000))
+    models.append(MLPClassifier(hidden_layer_sizes=(34, 34, 34, 34), random_state=1, learning_rate='adaptive', solver='adam', max_iter=1000, early_stopping=True))
+    models.append(DecisionTreeClassifier())
+    models.append( AdaBoostClassifier(n_estimators=50,learning_rate=1))
+    models.append(RandomForestClassifier(n_estimators = 100))
+    models.append(NaiveBayes())
+    
+    # ---------------------------------- PREDICTIONS ----------------------------------
+    y_predictions_train = []
+    y_predictions_test = []
+
+    for m in models:
+        m.fit(X_train, y_train)
+        y_predictions_train.append(m.predict(X_train))
+        y_predictions_test.append(m.predict(X_test))
+
+    # ---------------------------------- STATS ----------------------------------
+    accuracies_train = []
+    accuracies_test = []
+    classification_report_train = []
+    classification_report_test = []
+    confusion_matrix_train = []
+    confusion_matrix_test = []
+    precision_train = []
+    recall_train = []
+    f1_score_train = []
+    support_train = []
+    precision_test = []
+    recall_test = []
+    f1_score_test = []
+    for i in range(len(y_predictions_test)):
+        accuracies_train.append(accuracy_score(y_train, y_predictions_train[i]))
+        accuracies_test.append(accuracy_score(y_test, y_predictions_test[i]))
+
+        classification_report_train.append(classification_report(y_train,y_predictions_train[i], output_dict = True))
+        classification_report_test.append(classification_report(y_test,y_predictions_test[i], output_dict = True))
+        precision_train.append(classification_report(y_train,y_predictions_train[i], output_dict = True)['weighted avg']['precision'])
+        recall_train.append(classification_report(y_train,y_predictions_train[i], output_dict = True)['weighted avg']['recall'])
+        f1_score_train.append(classification_report(y_train,y_predictions_train[i], output_dict = True)['weighted avg']['f1-score'])
+        support_train.append(classification_report(y_train,y_predictions_train[i], output_dict = True)['weighted avg']['support'])
+        precision_test.append(classification_report(y_test,y_predictions_test[i], output_dict = True)['weighted avg']['precision'])
+        recall_test.append(classification_report(y_test,y_predictions_test[i], output_dict = True)['weighted avg']['recall'])
+        f1_score_test.append(classification_report(y_test,y_predictions_test[i], output_dict = True)['weighted avg']['f1-score'])
+        confusion_matrix_train.append(confusion_matrix(y_train, y_predictions_train[i]))
+        confusion_matrix_test.append(confusion_matrix(y_test, y_predictions_test[i]))
+    # ---------------------------------- REPORTING ----------------------------------
+    # report_accuracy = pd.DataFrame({'Model':model_names, 'Accuracy Train':accuracies_train, 'Accuracy Test':accuracies_test})
+    # print(report_accuracy)
+
+    # Classification Report Test
+    report = pd.DataFrame({'Model':model_names, 'Accuracy Train':accuracies_train, 'Accuracy Test':accuracies_test, 'Precision Train':precision_train, 'Precision Test':precision_test, 'Recall Train': recall_train, 'Recall Test': recall_test, 'F1-score Train':f1_score_train, 'F1-score Test':f1_score_test, 'Support Train':support_train})
+    report_train = pd.DataFrame({'Model':model_names, 'Accuracy Train':accuracies_train, 'Precision Train':precision_train, 'Recall Train': recall_train, 'F1-score Train':f1_score_train})
+    report_test = pd.DataFrame({'Model':model_names, 'Accuracy Test':accuracies_test, 'Precision Test':precision_test, 'Recall Test': recall_test, 'F1-score Test':f1_score_test })
+    # print(report)
+    print("Report - Training")
+    print(report_train)
+    print("Report - Test")
+    print(report_test)
+
+    # Plots - Confustion Matrix
+    fig = plt.figure(figsize=(15,10))
+    for i in range(len(models)):
+        sub = fig.add_subplot(3,3, i+1)
+        sns.heatmap(confusion_matrix_test[i], annot=True, fmt='g', cmap="crest")
+        sub.set_title(model_names[i])
+        sub.set_xlabel('Predicted')
+        sub.set_ylabel('Actual')
+    fig.tight_layout()
+
+    # Plots - Learning Curves using mlxtend documentation - http://rasbt.github.io/mlxtend/
+    gs = gridspec.GridSpec(3,3)
+    fig = plt.figure(figsize=(15,10))
+    for clf, label, grid in zip(models,model_names,list(itertools.product([0, 1, 2], repeat=2))):
+        clf.fit(X_train, y_train)
+        ax = plt.subplot(gs[grid[0], grid[1]])
+        plot_learning_curves(X_train, y_train, X_test, y_test, clf, scoring="accuracy")
+        plt.title(label)
+    fig.tight_layout()
+
+    # Plots - ROC Curve for Multiclass using https://stackoverflow.com/questions/45332410/roc-for-multiclass-classification
+    gs = gridspec.GridSpec(3,3)
+    fig = plt.figure(figsize=(15,10))
+    for model_idx, label, grid in zip(range(len(models)),model_names,list(itertools.product([0, 1, 2], repeat=2))):
+        ax = plt.subplot(gs[grid[0], grid[1]]) 
+        onehotencoder = OneHotEncoder()
+        y_valid= onehotencoder.fit_transform(y_test.reshape(-1,1)).toarray()
+        ypred = onehotencoder.fit_transform(np.array(y_predictions_test[model_idx]).reshape(-1,1)).toarray()
+        roc_multiclass(y_valid, ypred, label)
+    fig.tight_layout()
+
+    plt.show()
+
+# Helper method for roc plotting
+def roc_multiclass(y_valid, ypred, model_name):
+    for i in range(3):
+        fpr, tpr, thresholds = roc_curve(y_valid[:,i], ypred[:,i])
+        roc_label = 'Class-'+str(i)+': Area: '+ str(auc(fpr, tpr))
+        plt.plot(fpr, tpr, label = roc_label, lw=2)
+    plt.plot([0,1], [0,1], 'k--', 2)
+    plt.xlim([0, 1.0])
+    plt.ylim([0.0, 1])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC for '+model_name)
+    plt.legend()
+
+if __name__ == '__main__':
+    main()
